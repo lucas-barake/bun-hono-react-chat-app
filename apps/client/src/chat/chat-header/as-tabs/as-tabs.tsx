@@ -1,5 +1,5 @@
 import { Button } from "@/components/button";
-import { useSenderSession } from "@/lib/session";
+import { useSenderSession } from "@/lib/use-sender-session";
 import { ChatMessage } from "@org/api-contract";
 import React from "react";
 

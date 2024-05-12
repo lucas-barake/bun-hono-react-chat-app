@@ -3,7 +3,7 @@ import { ChatMessage } from "@org/api-contract";
 import { Avatar, AvatarFallback } from "@/components/avatar";
 import { cn } from "@/lib/cn";
 import { MessageStatusIcon } from "./message-status-icon";
-import { useSenderSession } from "@/lib/session";
+import { useSenderSession } from "@/lib/use-sender-session";
 
 type MessageBubbleProps = {
   message: ChatMessage;

@@ -1,7 +1,7 @@
 import { Button } from "@/components/button";
 import { Input } from "@/components/input";
 import { client } from "@/lib/client";
-import { useSenderSession } from "@/lib/session";
+import { useSenderSession } from "@/lib/use-sender-session";
 import React from "react";
 
 export const ChatFooter: React.FC = () => {

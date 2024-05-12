@@ -1,4 +1,4 @@
-import { WsEvents, type Api } from "@org/api";
+import type { WsEvents, Api } from "@org/api";
 import { hc } from "hono/client";
 
 export const client = hc<Api>("http://localhost:3000");
