@@ -1,0 +1,21 @@
+{
+  "name": "chat-app-bun",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:client": "cd apps/client && bun run dev",
+    "dev:server": "cd apps/server && bun run dev",
+    "build:client": "cd apps/client && bun run build"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "ts-pattern": "^5.1.1"
+  }
+}

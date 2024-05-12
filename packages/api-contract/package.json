@@ -1,0 +1,9 @@
+{
+  "name": "@org/api-contract",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "private": true,
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}
