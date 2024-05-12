@@ -14,6 +14,11 @@ export const MessageList: React.FC = () => {
       .then(setMessages);
   }, []);
 
+  React.useLayoutEffect(() => {
+    // scroll to bottom whenever messages change
+    document.getElementById("viewport-bottom")?.scrollIntoView();
+  }, [messages]);
+
   return (
     <ScrollArea className="relative flex-1 overflow-y-hidden px-6">
       <ScrollArea.Viewport className="pt-4">
@@ -21,7 +26,7 @@ export const MessageList: React.FC = () => {
           <MessageBubble key={i} message={message} />
         ))}
 
-        <div className="h-4" />
+        <div className="h-4" id="viewport-bottom" />
       </ScrollArea.Viewport>
     </ScrollArea>
   );
