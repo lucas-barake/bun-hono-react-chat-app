@@ -6,5 +6,5 @@ export const ws = client.ws.$ws(0);
 
 ws.addEventListener("message", (event) => {
   const eventData: WsEvents = JSON.parse(event.data);
-  console.log("CLIENT", eventData);
+  console.log(eventData);
 });

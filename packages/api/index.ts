@@ -7,6 +7,7 @@ import { messages } from "./mock-data";
 import { cors } from "hono/cors";
 import { WSContext } from "hono/ws";
 import { WsEvents } from "./types";
+import { Duration, Effect } from "effect";
 
 const app = new Hono();
 app.use(
@@ -14,7 +15,7 @@ app.use(
     origin: "*",
     allowMethods: ["GET", "POST", "PATCH"],
     allowHeaders: ["Content-Type"],
-  })
+  }),
 );
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
@@ -29,28 +30,28 @@ function broadcastMessage(event: WsEvents) {
 const router = app
   .get("/chat", (c) => c.json(messages))
   .post("/chat", zValidator("json", chatMessageSchema.omit({ id: true })), async (c) => {
-    const newMessage = c.req.valid("json");
-    const message = { ...newMessage, id: createId() } satisfies ChatMessage;
-    messages.push(message);
+    return Effect.gen(function* () {
+      yield* Effect.sleep(Duration.seconds(2));
 
-    broadcastMessage({ type: "new-message", message });
+      const newMessage = c.req.valid("json");
+      const message = { ...newMessage, id: createId() } satisfies ChatMessage;
+      messages.push(message);
 
-    return c.json(newMessage);
+      broadcastMessage({ type: "new-message", message });
+
+      return c.json(newMessage);
+    }).pipe(Effect.runPromise);
   })
-  .patch(
-    "/chat/read",
-    zValidator("json", chatMessageSchema.pick({ id: true, readAt: true })),
-    (c) => {
-      const { id, readAt } = c.req.valid("json");
-      const message = messages.find((m) => m.id === id);
-      if (message === undefined) {
-        return c.notFound();
-      }
-      message.readAt = readAt;
-      broadcastMessage({ type: "read-message", message });
-      return c.json(message);
+  .patch("/chat/read", zValidator("json", chatMessageSchema.pick({ id: true, readAt: true })), (c) => {
+    const { id, readAt } = c.req.valid("json");
+    const message = messages.find((m) => m.id === id);
+    if (message === undefined) {
+      return c.notFound();
     }
-  )
+    message.readAt = readAt;
+    broadcastMessage({ type: "read-message", message });
+    return c.json(message);
+  })
   .get(
     "/ws",
     upgradeWebSocket(() => {
@@ -62,7 +63,7 @@ const router = app
           console.log("Connection closed");
         },
       };
-    })
+    }),
   );
 
 export default {
