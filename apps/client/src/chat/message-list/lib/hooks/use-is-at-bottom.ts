@@ -25,7 +25,7 @@ export function useHandleIsAtBottom({ scrollParent }: Args): Return {
   }, [scrollParent]);
 
   React.useEffect(() => {
-    pipe(
+    return pipe(
       O.fromNullable(scrollParent),
       O.map((scrollParent) => {
         scrollParent.addEventListener("scroll", handleIsAtBottom);
@@ -34,7 +34,7 @@ export function useHandleIsAtBottom({ scrollParent }: Args): Return {
         };
       }),
       O.getOrElse(() => {
-        return () => null;
+        return () => {};
       }),
     );
   }, [handleIsAtBottom, scrollParent]);
