@@ -6,6 +6,7 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { useHandleIsAtBottom } from "./lib/hooks/use-is-at-bottom";
 import { Button } from "@/components/button";
 import { useMessagesQuery } from "@/lib/data-access/use-messages-query";
+import * as R from "remeda";
 
 export const MessageList: React.FC = () => {
   const virtuosoRef = React.useRef<VirtuosoHandle>(null);
@@ -13,7 +14,14 @@ export const MessageList: React.FC = () => {
   const { followOutput } = useHandleIsAtBottom({ scrollParent });
 
   const query = useMessagesQuery();
-  const messages = query.data ?? [];
+  const messages = React.useMemo(() => {
+    return R.pipe(
+      query.data ?? [],
+      // TODO: Fix dupes at the data access layer
+      R.uniqueBy((message) => message.id),
+      R.sortBy((message) => message.createdAt),
+    );
+  }, [query]);
 
   const Row = React.useMemo(
     () => (i: number, message: ChatMessage) => {
