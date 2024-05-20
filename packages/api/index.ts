@@ -28,16 +28,21 @@ function broadcastMessage(event: WsEvents) {
 }
 
 const router = app
-  .get("/chat", (c) => c.json(messages))
+  .get("/chat", (c) => {
+    return Effect.gen(function* () {
+      yield* Effect.sleep(Duration.seconds(3));
+      return c.json(messages);
+    }).pipe(Effect.runPromise);
+  })
   .post("/chat", zValidator("json", chatMessageSchema.omit({ id: true })), async (c) => {
     return Effect.gen(function* () {
       yield* Effect.sleep(Duration.seconds(2));
 
-      const newMessage = c.req.valid("json");
-      const message = { ...newMessage, id: createId() } satisfies ChatMessage;
-      messages.push(message);
+      const incomingMessage = c.req.valid("json");
+      const newMessage = { ...incomingMessage, id: createId() } satisfies ChatMessage;
+      messages.push(newMessage);
 
-      broadcastMessage({ type: "new-message", message });
+      broadcastMessage({ type: "new-message", message: newMessage });
 
       return c.json(newMessage);
     }).pipe(Effect.runPromise);
