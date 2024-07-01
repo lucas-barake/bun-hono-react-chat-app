@@ -16,6 +16,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "remeda": "^1.61.0",
     "ts-pattern": "^5.1.1"
   }
 }
