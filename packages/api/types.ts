@@ -5,9 +5,9 @@ type NewMessageEvent = {
   message: ChatMessage;
 };
 
-type ReadMessageEvent = {
-  type: "read-message";
-  message: ChatMessage;
+type ReadMessagesEvent = {
+  type: "read-messages";
+  messages: Array<Pick<ChatMessage, "id" | "readAt">>;
 };
 
-export type WsEvents = NewMessageEvent | ReadMessageEvent;
+export type WsEvents = NewMessageEvent | ReadMessagesEvent;

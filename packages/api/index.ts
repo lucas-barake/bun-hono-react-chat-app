@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { createBunWebSocket } from "hono/bun";
 import { zValidator } from "@hono/zod-validator";
-import { ChatMessage, chatMessageSchema } from "@org/api-contract";
-import { createId } from "@paralleldrive/cuid2";
-import { messages } from "./mock-data";
+import { chatMessageSchema } from "@org/api-contract";
 import { cors } from "hono/cors";
-import { WSContext } from "hono/ws";
 import { WsEvents } from "./types";
-import { Duration, Effect } from "effect";
+import { Duration, Effect, Random, pipe } from "effect";
+import { ChatMessagesService } from "./services/chat-messages.service";
+import { EndpointRuntime } from "./runtimes/endpoint.runtime";
+import { WebSocketBroadcastService } from "./services/websocket.service";
+import { z } from "zod";
 
 const app = new Hono();
 app.use(
@@ -19,48 +20,83 @@ app.use(
 );
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
-const activeConnections = new Set<WSContext>();
-
-function broadcastMessage(event: WsEvents) {
-  for (const ws of activeConnections) {
-    ws.send(JSON.stringify(event));
-  }
-}
 
 const router = app
-  .get("/chat", (c) => c.json(messages))
+  .get("/chat", (c) => {
+    return pipe(
+      Effect.gen(function* () {
+        const chatMessagesService = yield* ChatMessagesService;
+        const allMessages = yield* chatMessagesService.getAll.pipe(
+          Effect.tap((messages) => Effect.log(`Got ${messages.length} messages`)),
+        );
+
+        const sleepFor = yield* Random.nextRange(0.5, 1.5);
+        yield* Effect.sleep(Duration.seconds(sleepFor)).pipe(
+          Effect.tap(() => Effect.log(`Sleeping for ${sleepFor} seconds`)),
+        );
+
+        yield* Effect.log(`Responding to client`);
+        return c.json(allMessages);
+      }),
+      Effect.annotateLogs({ endpoint: "/chat", method: "GET" }),
+      EndpointRuntime.runPromise,
+    );
+  })
   .post("/chat", zValidator("json", chatMessageSchema.omit({ id: true })), async (c) => {
-    return Effect.gen(function* () {
-      yield* Effect.sleep(Duration.seconds(2));
+    return pipe(
+      Effect.gen(function* () {
+        const chatMessagesService = yield* ChatMessagesService;
+        const wsService = yield* WebSocketBroadcastService;
 
-      const newMessage = c.req.valid("json");
-      const message = { ...newMessage, id: createId() } satisfies ChatMessage;
-      messages.push(message);
+        const incomingMessage = c.req.valid("json");
+        const newMessage = yield* chatMessagesService
+          .add(incomingMessage)
+          .pipe(Effect.tap((message) => Effect.log(`Added message with id ${message.id}`)));
 
-      broadcastMessage({ type: "new-message", message });
+        yield* wsService.broadcast({ type: "new-message", message: newMessage });
 
-      return c.json(newMessage);
-    }).pipe(Effect.runPromise);
+        return c.json(newMessage);
+      }),
+      Effect.annotateLogs({ endpoint: "/chat", method: "POST" }),
+      EndpointRuntime.runPromise,
+    );
   })
-  .patch("/chat/read", zValidator("json", chatMessageSchema.pick({ id: true, readAt: true })), (c) => {
-    const { id, readAt } = c.req.valid("json");
-    const message = messages.find((m) => m.id === id);
-    if (message === undefined) {
-      return c.notFound();
-    }
-    message.readAt = readAt;
-    broadcastMessage({ type: "read-message", message });
-    return c.json(message);
-  })
+  .patch(
+    "/chat/mark-as-read",
+    zValidator("json", z.array(chatMessageSchema.pick({ id: true, readAt: true })).max(50)),
+    (c) => {
+      return pipe(
+        Effect.gen(function* () {
+          const chatMessagesService = yield* ChatMessagesService;
+          const wsService = yield* WebSocketBroadcastService;
+
+          const messages = c.req.valid("json");
+          for (const message of messages) {
+            yield* chatMessagesService.markAsRead(message.id, message.readAt);
+          }
+
+          yield* wsService.broadcast({ type: "read-messages", messages });
+
+          return c.json(messages);
+        }),
+        Effect.annotateLogs({ endpoint: "/chat/mark-as-read", method: "PATCH" }),
+        EndpointRuntime.runPromise,
+      );
+    },
+  )
   .get(
     "/ws",
     upgradeWebSocket(() => {
       return {
         onOpen(_event, ws) {
-          activeConnections.add(ws);
+          EndpointRuntime.runSync(
+            Effect.flatMap(WebSocketBroadcastService, (wsService) => wsService.addConnection(ws)),
+          );
         },
-        onClose: () => {
-          console.log("Connection closed");
+        onClose: (_event, ws) => {
+          EndpointRuntime.runSync(
+            Effect.flatMap(WebSocketBroadcastService, (wsService) => wsService.removeConnection(ws)),
+          );
         },
       };
     }),
